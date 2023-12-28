@@ -5,6 +5,7 @@ import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { Schedule } from './entities/schedule.entity';
 import { UserService } from '../user/user.service';
+import { utils } from '../utils/utils';
 
 @Injectable()
 export class ScheduleService {
@@ -14,7 +15,6 @@ export class ScheduleService {
     private userService: UserService,
   ) {}
   async create(createScheduleDto: CreateScheduleDto, user) {
-    console.log(await this.userService.isClient(user.userId));
     const isClient = await this.userService.isClient(user.userId);
     if (!isClient) {
       throw new HttpException(
@@ -31,6 +31,30 @@ export class ScheduleService {
     if (isBusy) {
       throw new HttpException(
         'Este consultor já tem uma agenda neste intervalo de horário.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const intervalTime = utils.diff(
+      createScheduleDto.schedule_end_at,
+      createScheduleDto.schedule_start_at,
+    );
+
+    if (intervalTime > 120 || intervalTime < 30) {
+      throw new HttpException(
+        'Só podem ser agendadas reuniões no perído de 30 minutos a 2 horas.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const roomIsBusy = await this.validateScheduleRoom(
+      createScheduleDto.roomId,
+      createScheduleDto.schedule_start_at,
+    );
+
+    if (roomIsBusy) {
+      throw new HttpException(
+        'Essa sala já está reservada para esse período.',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -85,6 +109,16 @@ export class ScheduleService {
       .where(
         'schedule_start_at <= :start_at and schedule_end_at > :start_at and brokerId = :brokerId',
         { start_at, brokerId },
+      )
+      .getExists();
+  }
+
+  async validateScheduleRoom(roomId, start_at) {
+    return await this.repository
+      .createQueryBuilder()
+      .where(
+        'schedule_start_at <= :start_at and schedule_end_at > :start_at and roomId = :roomId',
+        { start_at, roomId },
       )
       .getExists();
   }
