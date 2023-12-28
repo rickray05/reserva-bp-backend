@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: bd-reserva
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=reserva
+      - MYSQL_DATABASE=reserva
+      - MYSQL_USER=reserva
+      - MYSQL_PASSWORD=123456
+    ports:
+      - "3306:3306"
+
